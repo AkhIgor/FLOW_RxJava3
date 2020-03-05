@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
 
 class MainActivity : AppCompatActivity() {
 
@@ -38,7 +39,7 @@ class MainActivity : AppCompatActivity() {
         clearButton = findViewById(R.id.clear_button)
 
         countButton.setOnClickListener {
-            fakeApiRx()
+            fakeApiFlow()
         }
 
         clearButton.setOnClickListener {
@@ -48,18 +49,25 @@ class MainActivity : AppCompatActivity() {
 
     @ExperimentalTime
     private fun fakeApiFlow() {
-        CoroutineScope(Default).launch {
+        CoroutineScope(Main).launch {
             val users: Flow<User> = repository.getAllByFlow()
-            users.collect { user ->
-                async(Main) {
-                    Log.d("flow", user.age.toString())
-                }
+            val time = measureTime {
+                users.collect { user ->
+                    // launch(Main) {
+                    // withContext(Main) {
+                    //     async(Main) {
+                            Log.d(FLOW, user.age.toString())
+                        Log.d(THREAD, Thread.currentThread().name)
+                        printResult(user.age.toString())
+                    }
+                // }
                 // withContext(Main) {
                 // //     printResult(user.age.toString())
                 //     Log.d("flow", user.age.toString())
                 // }
                 // Log.d("flow", user.age.toString())
             }
+            Log.d(TIME, time.toString())
         }
     }
 
@@ -69,9 +77,9 @@ class MainActivity : AppCompatActivity() {
                 .subscribeOn(Schedulers.computation())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
-                    { user ->  printResult(user.age.toString()) },
-                    { error -> Log.d("RXJava 3", error.toString()) },
-                    { Log.d("rx", "Done") }
+                    { user -> printResult(user.age.toString()) },
+                    { error -> Log.d(RxJava, error.toString()) },
+                    { Log.d(RxJava, "Done") }
                 )
         )
     }
@@ -83,5 +91,15 @@ class MainActivity : AppCompatActivity() {
     private fun TextView.clear() {
         text = ""
         disposable.clear()
+    }
+
+    companion object {
+        const val THREAD = "Thread"
+        const val FLOW = "Flow"
+        const val RxJava = "RxJava"
+
+        const val TIME = "Time"
+
+        private const val THREAD_WORKER_FILTER = "Thread: DefaultDispatcher-worker-"
     }
 }

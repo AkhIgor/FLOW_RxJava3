@@ -1,5 +1,7 @@
 package com.igor.myapplication
 
+import android.util.Log
+import com.igor.myapplication.MainActivity.Companion.THREAD
 import io.reactivex.rxjava3.core.BackpressureStrategy
 import io.reactivex.rxjava3.core.Flowable
 import io.reactivex.rxjava3.core.Observable
@@ -22,6 +24,7 @@ class Repository {
         return flow {
             for (i in 1..10_000) {
                 val user = User("Igor", i)
+                Log.d(THREAD, Thread.currentThread().name)
                 emit(user)
             }
         }
