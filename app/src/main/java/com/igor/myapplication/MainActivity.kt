@@ -12,18 +12,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var textView: TextView
-    private lateinit var countButton: Button
+    private lateinit var countButtonRx: Button
+    private lateinit var countButtonFlow: Button
     private lateinit var clearButton: Button
     private val repository = Repository()
     private val disposable = CompositeDisposable()
@@ -35,10 +34,15 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         textView = findViewById(R.id.text_view)
-        countButton = findViewById(R.id.count_button)
+        countButtonRx = findViewById(R.id.rx_button)
+        countButtonFlow = findViewById(R.id.flow_button)
         clearButton = findViewById(R.id.clear_button)
 
-        countButton.setOnClickListener {
+        countButtonRx.setOnClickListener {
+            fakeApiRx()
+        }
+
+        countButtonFlow.setOnClickListener {
             fakeApiFlow()
         }
 
@@ -49,29 +53,25 @@ class MainActivity : AppCompatActivity() {
 
     @ExperimentalTime
     private fun fakeApiFlow() {
-        CoroutineScope(Main).launch {
+        CoroutineScope(Default).launch {
             val users: Flow<User> = repository.getAllByFlow()
             val time = measureTime {
                 users.collect { user ->
-                    // launch(Main) {
-                    // withContext(Main) {
-                    //     async(Main) {
-                            Log.d(FLOW, user.age.toString())
+                    launch(Main) {
+                        Log.d(FLOW, user.age.toString())
                         Log.d(THREAD, Thread.currentThread().name)
                         printResult(user.age.toString())
                     }
-                // }
-                // withContext(Main) {
-                // //     printResult(user.age.toString())
-                //     Log.d("flow", user.age.toString())
-                // }
-                // Log.d("flow", user.age.toString())
+                }
             }
             Log.d(TIME, time.toString())
         }
+
     }
 
+    @ExperimentalTime
     private fun fakeApiRx() {
+        val initialTime = System.currentTimeMillis()
         disposable.add(
             repository.getAllByRx()
                 .subscribeOn(Schedulers.computation())
@@ -79,7 +79,10 @@ class MainActivity : AppCompatActivity() {
                 .subscribe(
                     { user -> printResult(user.age.toString()) },
                     { error -> Log.d(RxJava, error.toString()) },
-                    { Log.d(RxJava, "Done") }
+                    {
+                        Log.d(RxJava, "Done")
+                        Log.d(TIME, (System.currentTimeMillis() - initialTime).toString())
+                    }
                 )
         )
     }
