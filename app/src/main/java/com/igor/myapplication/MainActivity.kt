@@ -14,6 +14,8 @@ import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -55,6 +57,11 @@ class MainActivity : AppCompatActivity() {
     private fun fakeApiFlow() {
         CoroutineScope(Default).launch {
             val users: Flow<User> = repository.getAllByFlow()
+                .filter { user -> user.age % 2 == 0 }
+                .map { user ->
+                    user.age = user.age / 2
+                    return@map user
+                }
             val time = measureTime {
                 users.collect { user ->
                     launch(Main) {
@@ -66,7 +73,6 @@ class MainActivity : AppCompatActivity() {
             }
             Log.d(TIME, time.toString())
         }
-
     }
 
     @ExperimentalTime
@@ -76,6 +82,11 @@ class MainActivity : AppCompatActivity() {
             repository.getAllByRx()
                 .subscribeOn(Schedulers.computation())
                 .observeOn(AndroidSchedulers.mainThread())
+                .filter { user -> user.age % 2 == 0 }
+                .map { user ->
+                    user.age = user.age / 2
+                    return@map user
+                }
                 .subscribe(
                     { user -> printResult(user.age.toString()) },
                     { error -> Log.d(RxJava, error.toString()) },
