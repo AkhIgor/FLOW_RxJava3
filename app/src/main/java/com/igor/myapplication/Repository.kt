@@ -2,8 +2,6 @@ package com.igor.myapplication
 
 import android.util.Log
 import com.igor.myapplication.MainActivity.Companion.THREAD
-import io.reactivex.rxjava3.core.BackpressureStrategy
-import io.reactivex.rxjava3.core.Flowable
 import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -20,7 +18,7 @@ class Repository {
         }
     }
 
-    fun getAllByFlow(): Flow<User> {
+    suspend fun getAllByFlow(): Flow<User> {
         return flow {
             for (i in 1..10_000) {
                 val user = User("Igor", i)
@@ -28,5 +26,9 @@ class Repository {
                 emit(user)
             }
         }
+    }
+
+    fun s(s: String) {
+        print("hello, $s sw")
     }
 }

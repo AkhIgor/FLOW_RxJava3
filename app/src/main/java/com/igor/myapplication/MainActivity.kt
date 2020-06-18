@@ -8,15 +8,13 @@ import androidx.appcompat.app.AppCompatActivity
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.schedulers.Schedulers
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.Main
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
@@ -29,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     private val repository = Repository()
     private val disposable = CompositeDisposable()
 
+    @ObsoleteCoroutinesApi
     @ExperimentalTime
     @ExperimentalCoroutinesApi
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,8 +50,11 @@ class MainActivity : AppCompatActivity() {
         clearButton.setOnClickListener {
             textView.clear()
         }
+
+        initCoroutines()
     }
 
+    @ExperimentalCoroutinesApi
     @ExperimentalTime
     private fun fakeApiFlow() {
         CoroutineScope(Default).launch {
@@ -73,6 +75,21 @@ class MainActivity : AppCompatActivity() {
             }
             Log.d(TIME, time.toString())
         }
+//        CoroutineScope(Main).launch {
+//            repository.getAllByFlow()
+//                .flowOn(IO)
+//                .map { user ->
+//                    Log.d(THREAD, Thread.currentThread().name)
+//                    user.age = user.age / 2
+//                    return@map user
+//                }
+//                .flowOn(Default)
+//                .collect { user ->
+//                    Log.d(FLOW, user.age.toString())
+//                    Log.d(THREAD, Thread.currentThread().name)
+//                    printResult(user.age.toString())
+//                }
+//        }
     }
 
     @ExperimentalTime
@@ -82,11 +99,11 @@ class MainActivity : AppCompatActivity() {
             repository.getAllByRx()
                 .subscribeOn(Schedulers.computation())
                 .observeOn(AndroidSchedulers.mainThread())
-                .filter { user -> user.age % 2 == 0 }
-                .map { user ->
-                    user.age = user.age / 2
-                    return@map user
-                }
+//                .filter { user -> user.age % 2 == 0 }
+//                .map { user ->
+//                    user.age = user.age / 2
+//                    return@map user
+//                }
                 .subscribe(
                     { user -> printResult(user.age.toString()) },
                     { error -> Log.d(RxJava, error.toString()) },
@@ -96,6 +113,28 @@ class MainActivity : AppCompatActivity() {
                     }
                 )
         )
+    }
+
+    @ObsoleteCoroutinesApi
+    private fun initCoroutines() {
+        CoroutineScope(Main).apply {
+            launch {
+                // context of the parent, main runBlocking coroutine
+                println("main runBlocking      : I'm working in thread ${Thread.currentThread().name}")
+            }
+            launch(Dispatchers.Unconfined) {
+                // not confined -- will work with main thread
+                println("Unconfined            : I'm working in thread ${Thread.currentThread().name}")
+            }
+            launch(Dispatchers.Default) {
+                // will get dispatched to DefaultDispatcher
+                println("Default               : I'm working in thread ${Thread.currentThread().name}")
+            }
+            launch(newSingleThreadContext("MyOwnThread")) {
+                // will get its own new thread
+                println("newSingleThreadContext: I'm working in thread ${Thread.currentThread().name}")
+            }
+        }
     }
 
     private fun printResult(result: String) {
