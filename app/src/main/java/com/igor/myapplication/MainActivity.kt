@@ -51,7 +51,7 @@ class MainActivity : AppCompatActivity() {
             textView.clear()
         }
 
-        initCoroutines()
+        main()
     }
 
     @ExperimentalCoroutinesApi
@@ -144,6 +144,30 @@ class MainActivity : AppCompatActivity() {
     private fun TextView.clear() {
         text = ""
         disposable.clear()
+    }
+
+    fun main() {
+        GlobalScope.launch {
+            println("main starts")
+            joinAll(
+                async { coroutine(1, 500) },
+                async { coroutine(2, 300) }
+            )
+            println("main ends")
+        }
+    }
+
+    suspend fun coroutine(number: Int, delay: Long) {
+        println("Coroutine $number starts work")
+        delay(delay)
+        println("Coroutine $number has finished")
+    }
+
+
+    fun routine(number: Int, delay: Long) {
+        println("Routine $number starts work")
+        Thread.sleep(delay)
+        println("Routine $number has finished")
     }
 
     companion object {
