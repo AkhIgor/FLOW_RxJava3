@@ -8,7 +8,8 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Dispatchers.Main
-import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.produce
 import kotlin.time.ExperimentalTime
 
 class MainActivity : AppCompatActivity() {
@@ -53,33 +54,6 @@ class MainActivity : AppCompatActivity() {
         main()
     }
 
-    private fun launchSomeWorkInBackground() {
-        runBlocking {
-            printText("Waiting for results")
-            delay(3_000) // call suspend function
-            println("Thread: ${Thread.currentThread()}")
-            printText("Success!")
-        }
-    }
-
-    private fun asyncSomeWorkInBackground() {
-        CoroutineScope(IO).launch {
-            val result1 = async {
-                getResults()
-            }.await()
-
-            val result2 = async {
-                getResults()
-            }.await()
-
-            val result3 = async {
-                getResults()
-            }.await()
-
-            printText(result1 + result2 + result3)
-        }
-    }
-
     private fun asyncWork() {
         GlobalScope.launch {
             val result: Deferred<String> = async {
@@ -105,62 +79,96 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun getResults(): String {
-        printText("Waiting for results")
-        delay(3_000) // call suspend function
-        return "Success!"
-    }
-
-    private object CoroutineHandler: CoroutineExceptionHandler{
-        override fun handleException(context: CoroutineContext, exception: Throwable) {
-            TODO("Not yet implemented")
+    @ExperimentalCoroutinesApi
+    suspend fun CoroutineScope.produceNumbers() = produce {
+        var x = 1
+        while (true) {
+            send(x++) // produce next
+            delay(100) // wait 0.1s
         }
-
     }
 
+    @ExperimentalCoroutinesApi
+    fun CoroutineScope.square(numbers: ReceiveChannel<Int>) = produce {
+        for (x in numbers) send(x * x)
+    }
 
+    @ExperimentalCoroutinesApi
     private fun main() {
         val parentJob = CoroutineScope(IO).launch {
+
             val childJob_1 = launch {
                 val result = getResult(1)   //delay for 1s
                 printResult(result)
             }
 
-            val childJob_2 = launch {
-                val result = getResult(2)   //delay for 2s
-//                throw IllegalArgumentException("IllegalArgumentException")
-                printResult(result)
+
+            try {
+                val childJob_2 = launch {
+                    val result = getResult(2)   //delay for 2s
+                    throw IllegalArgumentException()
+                    printResult(result)
+                    cancel()
+                }
+            } catch (e: CancellationException) {
+                println("IllegalArgumentException")
             }
 
             val childJob_3 = launch {
                 val result = getResult(3)   //delay for 3s
                 printResult(result)
             }
-
-            childJob_2.cancel()
-        }
-
-        parentJob.invokeOnCompletion { e ->
-            when (e) {
-                null -> {
-                    println("Parent job finished successfully")
-                }
-                is CancellationException -> {
-                    println("Parent job was canceled")
-                }
-                else -> {
-                    println("Parent job failed with exception ${e.message}")
-                }
-            }
         }
     }
+
+    suspend fun s() {
+        withContext(IO) {
+
+        }
+    }
+
+    @ExperimentalCoroutinesApi
+    fun CoroutineScope.launchProcessor(id: Int, channel: ReceiveChannel<Int>) = launch {
+        for (data in channel) {
+            if (data == 3) {
+                cancel()
+            } else println("Processor #$id received $data")
+        }
+    }
+
+//    val channel = Channel<String>()
+//
+//        val producerJob = CoroutineScope(IO).launch {
+//            for (emitNumber in 1..5) {
+//                delay(1000)
+//                println("Sending result: $emitNumber")
+//                channel.send(emitNumber.toString())
+//            }
+//            channel.close()
+//        }
+//
+//        val consumerJob = CoroutineScope(IO).launch {
+//            for (result in channel)
+//                println("Got new result: $result")
+//        }
 
     private suspend fun getResult(time: Long): String {
         delay(time * 1000)
         return time.toString()
     }
 
-    private suspend fun printResult(number: String) {
+    @ExperimentalCoroutinesApi
+    private fun produceData(scope: CoroutineScope): ReceiveChannel<String> {
+        return scope.produce(capacity = 5) {
+            for (emitNumber in 1..5) {
+                delay(1000)
+                println("Sending result: $emitNumber")
+                channel.send(emitNumber.toString())
+            }
+        }
+    }
+
+    private fun printResult(number: String) {
         println("childJob #$number has finished with result $number")
     }
 
